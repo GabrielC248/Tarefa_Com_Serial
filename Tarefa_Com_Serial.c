@@ -16,6 +16,7 @@
 
 static volatile uint32_t last_time = 0; // Variável para armazenar o tempo do último callback.
 static ssd1306_t *ssd_pointer;
+static char *string_a_pointer, *string_b_pointer;
 
 // ---------------- Variáveis - Fim ----------------
 
@@ -384,14 +385,36 @@ void gpio_irq_callback(uint gpio, uint32_t events) {
   if (current_time - last_time > 200) { // 200 ms de debouncing.
     last_time = current_time; // Atualiza o tempo do último evento.
     if( (gpio == button_A)) {
-      printf("teste A\n");
+
       gpio_put(green_rgb, !gpio_get(green_rgb));
+
+      if(gpio_get(green_rgb)) {
+        string_a_pointer[0] = 'n';
+        string_a_pointer[1] = ' ';
+      }else {
+        string_a_pointer[0] = 'f';
+        string_a_pointer[1] = 'f';       
+      }
+      ssd1306_draw_string(ssd_pointer, string_a_pointer, 96, 40); // Desenha uma string
+
     }else
     if( (gpio == button_B)) {
-      printf("teste B\n");
+
       gpio_put(blue_rgb, !gpio_get(blue_rgb));
+
+      if(gpio_get(blue_rgb)) {
+        string_b_pointer[0] = 'n';
+        string_b_pointer[1] = ' ';
+      }else {
+        string_b_pointer[0] = 'f';
+        string_b_pointer[1] = 'f';       
+      }
+      ssd1306_draw_string(ssd_pointer, string_b_pointer, 88, 48); // Desenha uma string
+
     }
+    
     ssd1306_send_data(ssd_pointer); // Atualiza o display
+
   }
 }
 
@@ -408,7 +431,6 @@ int main() {
   gpio_set_function(1, GPIO_FUNC_UART);
 
   start_display(&ssd);
-  ssd_pointer = &ssd;
 
   // Inicializa matriz de LEDs NeoPixel.
   npInit(LED_PIN);
@@ -424,41 +446,69 @@ int main() {
   gpio_set_irq_enabled_with_callback(button_B, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_callback);
   gpio_set_irq_enabled_with_callback(button_A, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_callback);
 
+  ssd_pointer = &ssd;
+  string_a_pointer = &string_a[11];
+  string_b_pointer = &string_b[10];
+
+  ssd1306_rect(&ssd, 0, 0, 128, 64, true, false); // Desenha um retângulo
+  ssd1306_rect(&ssd, 2, 2, 124, 60, true, false); // Desenha um retângulo
+
+  ssd1306_draw_string(&ssd, "caractere", 8, 8); // Desenha uma string
+  ssd1306_draw_string(&ssd, "digitado:", 8, 16); // Desenha uma string
+  ssd1306_draw_string(&ssd, c, 80, 16); // Desenha uma string
+  ssd1306_draw_string(&ssd, string_a, 8, 40); // Desenha uma string
+  ssd1306_draw_string(&ssd, string_b, 8, 48); // Desenha uma string
+
+  ssd1306_send_data(&ssd); // Atualiza o display
+
   while(true) {
     sleep_ms(20);
+
+    // Código para a comunicação serial com a BitDogLab pelo terminal do VScode 
     if(stdio_usb_connected) {
+
+      c[0] = getc(stdin);
 
       handle_numbers(c[0]);
 
       ssd1306_rect(&ssd, 0, 0, 128, 64, true, false); // Desenha um retângulo
       ssd1306_rect(&ssd, 2, 2, 124, 60, true, false); // Desenha um retângulo
 
-      //ssd1306_draw_string(&ssd, "testeeeeeeeeee", 8, 8); // Desenha uma string max 14
-
       ssd1306_draw_string(&ssd, "caractere", 8, 8); // Desenha uma string
       ssd1306_draw_string(&ssd, "digitado:", 8, 16); // Desenha uma string
       ssd1306_draw_string(&ssd, c, 80, 16); // Desenha uma string
-
-      if(gpio_get(green_rgb)) {
-        string_a[11] = 'n';
-        string_a[12] = ' ';
-      }else {
-        string_a[11] = 'f';
-        string_a[12] = 'f';       
-      }
-      if(gpio_get(blue_rgb)) {
-        string_b[10] = 'n';
-        string_b[11] = ' ';
-      }else {
-        string_b[10] = 'f';
-        string_b[11] = 'f';       
-      }
-
       ssd1306_draw_string(&ssd, string_a, 8, 40); // Desenha uma string
       ssd1306_draw_string(&ssd, string_b, 8, 48); // Desenha uma string
 
       ssd1306_send_data(&ssd); // Atualiza o display
-      c[0] = getc(stdin);
     }
+
+    /*
+    // Cuidado ao retirar esse comentário,
+    // tanto a simulação no wokwi quanto o teste na placa funcionam com ambos os códigos rodando, entretanto,
+    // a simulação no wokwi ficará bem lenta devido ao código da BitDogLab.
+    // Recomendo comentar o código da BitDogLab para simular no Wokwi.
+    
+
+    // Código para a simulação no Wokwi
+    if(uart_is_readable(UART_ID)) {
+
+      c[0] = uart_getc(UART_ID);
+
+      handle_numbers(c[0]);
+
+      ssd1306_rect(&ssd, 0, 0, 128, 64, true, false); // Desenha um retângulo
+      ssd1306_rect(&ssd, 2, 2, 124, 60, true, false); // Desenha um retângulo
+
+      ssd1306_draw_string(&ssd, "caractere", 8, 8); // Desenha uma string
+      ssd1306_draw_string(&ssd, "digitado:", 8, 16); // Desenha uma string
+      ssd1306_draw_string(&ssd, c, 80, 16); // Desenha uma string
+      ssd1306_draw_string(&ssd, string_a, 8, 40); // Desenha uma string
+      ssd1306_draw_string(&ssd, string_b, 8, 48); // Desenha uma string
+
+      ssd1306_send_data(&ssd); // Atualiza o display
+    }
+    */
+
   }
 }
