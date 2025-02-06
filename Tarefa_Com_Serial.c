@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
-#include "pico/bootrom.h"
 #include "hardware/uart.h"
 #include "hardware/i2c.h"
 #include "hardware/pio.h"
@@ -14,9 +13,9 @@
 
 // ---------------- Variáveis - Início ----------------
 
-static volatile uint32_t last_time = 0; // Variável para armazenar o tempo do último callback.
-static ssd1306_t *ssd_pointer;
-static char *string_a_pointer, *string_b_pointer;
+static volatile uint32_t last_time = 0; // Variável para armazenar o tempo do último callback
+static ssd1306_t *ssd_pointer; // Variável para armazenar o ponteiro do display
+static char *string_a_pointer, *string_b_pointer; // Variáveis para armazenar as strings de estado dos leds
 
 // ---------------- Variáveis - Fim ----------------
 
@@ -24,12 +23,12 @@ static char *string_a_pointer, *string_b_pointer;
 
 // ---------------- Defines - Início ----------------
 
-#define UART_ID uart0
+#define UART_ID uart0 // Define a porta UART a ser utilizada
 
-#define I2C_PORT i2c1
-#define I2C_SDA 14
-#define I2C_SCL 15
-#define endereco 0x3C
+#define I2C_PORT i2c1 // Define a porta I2C a ser utilizada
+#define I2C_SDA 14 // Define o pino de dados do barramento I2C
+#define I2C_SCL 15 // Define o pino de clock (SCL) do barramento I2C
+#define endereco 0x3C // Define o endereço do display
 
 #define button_A 5 // Define o pino do botão verde.
 #define button_B 6   // Define o pino do botão vermelho.
@@ -146,6 +145,7 @@ void npDraw(uint8_t vetorR[5][5], uint8_t vetorG[5][5], uint8_t vetorB[5][5])
 
 // ---------------- Números - Início ----------------
 
+// Vetor que representa os LEDs vermelhos e verdes da matriz
 uint8_t vetorRG[5][5] = {
     {  0  ,  0  ,  0  ,  0  ,  0  },
     {  0  ,  0  ,  0  ,  0  ,  0  },
@@ -155,6 +155,7 @@ uint8_t vetorRG[5][5] = {
 };
 
 void num_0() {
+  // Vetor que representa os LEDs azuis
   uint8_t vetorB[5][5] = {
     {  0  , luz , luz , luz ,  0  },
     {  0  , luz ,  0  , luz ,  0  },
@@ -163,7 +164,7 @@ void num_0() {
     {  0  , luz , luz , luz ,  0  }
   };
   npDraw(vetorRG,vetorRG,vetorB); // Carrega os buffers.
-  npWrite();                      // Escreve na matriz de LEDS.
+  npWrite();                      // Escreve na matriz de LEDs.
   npClear();                      // Limpa os buffers (não necessário, mas por garantia).
 }
 
@@ -322,7 +323,7 @@ int handle_numbers(char num) {
       npWrite();
       return 1;
   }
-  printf("%c Escrito na matriz!\n", num); // Print para visualização no terminal.
+  printf("-------- %c Escrito na matriz! --------\n", num); // Printf para visualização no terminal
   return 0;
 }
 
@@ -376,18 +377,22 @@ void init_RGB() {
 
 // ---------------- Inicializações  - Fim ----------------
 
-// Callback da interrupção dos botões.
+// Callback da interrupção dos botões
 void gpio_irq_callback(uint gpio, uint32_t events) {
-  // Obtém o tempo atual em microssegundos.
+
+  // Obtém o tempo atual em microssegundos
   uint32_t current_time = to_ms_since_boot(get_absolute_time());
 
-  // Verifica se passou tempo suficiente desde o último evento.
-  if (current_time - last_time > 200) { // 200 ms de debouncing.
-    last_time = current_time; // Atualiza o tempo do último evento.
+  // Verifica se passou tempo suficiente desde o último evento
+  if (current_time - last_time > 200) { // 200 ms de debouncing
+    last_time = current_time; // Atualiza o tempo do último evento
+
+    // Verifica se e o botão A foi pressionado
     if( (gpio == button_A)) {
 
-      gpio_put(green_rgb, !gpio_get(green_rgb));
+      gpio_put(green_rgb, !gpio_get(green_rgb)); // Alterna o estado do LED verde
 
+      // Atualiza a string que representa o estado do LED verde
       if(gpio_get(green_rgb)) {
         string_a_pointer[0] = 'n';
         string_a_pointer[1] = ' ';
@@ -395,13 +400,19 @@ void gpio_irq_callback(uint gpio, uint32_t events) {
         string_a_pointer[0] = 'f';
         string_a_pointer[1] = 'f';       
       }
-      ssd1306_draw_string(ssd_pointer, string_a_pointer, 96, 40); // Desenha uma string
 
+      // Atualiza o trecho no display que representa o estado do LED verde
+      ssd1306_draw_string(ssd_pointer, string_a_pointer, 96, 40);
+      printf("-------- A pressionado! LED verde: o%s --------\n", string_a_pointer); // Printf para visualização no terminal
+      
     }else
+
+    // Verifica se e o botão B foi pressionado
     if( (gpio == button_B)) {
 
-      gpio_put(blue_rgb, !gpio_get(blue_rgb));
+      gpio_put(blue_rgb, !gpio_get(blue_rgb)); // Alterna o estado do LED azul
 
+      // Atualiza a string que representa o estado do LED azul
       if(gpio_get(blue_rgb)) {
         string_b_pointer[0] = 'n';
         string_b_pointer[1] = ' ';
@@ -409,55 +420,62 @@ void gpio_irq_callback(uint gpio, uint32_t events) {
         string_b_pointer[0] = 'f';
         string_b_pointer[1] = 'f';       
       }
-      ssd1306_draw_string(ssd_pointer, string_b_pointer, 88, 48); // Desenha uma string
 
+      // Atualiza o trecho no display que representa o estado do LED azul
+      ssd1306_draw_string(ssd_pointer, string_b_pointer, 88, 48); // Desenha uma string
+      printf("-------- B pressionado! LED azul: o%s --------\n", string_b_pointer); // Printf para visualização no terminal
     }
-    
+
     ssd1306_send_data(ssd_pointer); // Atualiza o display
 
   }
 }
 
 int main() {
-  char c[] = "?\0";
-  char string_a[] = "green led:off\0";
-  char string_b[] = "blue led:off\0";
-  ssd1306_t ssd; // Inicializa a estrutura do display
+  char c[] = "?\0"; // String do caractere pressionado
+  char string_a[] = "green led:off\0"; // String do estado do LED verde
+  char string_b[] = "blue led:off\0"; // String do estado do LED azul
+
+  ssd1306_t ssd; // Variável que representa o display
 
   stdio_init_all();
 
+  // Inicializa a comunicação UART
   uart_init(UART_ID, 115200);
   gpio_set_function(0, GPIO_FUNC_UART);
   gpio_set_function(1, GPIO_FUNC_UART);
 
+  // Inicializa o display OLED
   start_display(&ssd);
 
-  // Inicializa matriz de LEDs NeoPixel.
+  // Inicializa a matriz de LEDs NeoPixel
   npInit(LED_PIN);
   npClear();
   npWrite();
 
-  // Inicializa os botões.
+  // Inicializa os botões
   init_buttons();
 
-  // Inicializa o LED RGB.
+  // Inicializa o LED RGB
   init_RGB();
 
+  // Configura interrupções para os botões
   gpio_set_irq_enabled_with_callback(button_B, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_callback);
   gpio_set_irq_enabled_with_callback(button_A, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_callback);
 
-  ssd_pointer = &ssd;
-  string_a_pointer = &string_a[11];
-  string_b_pointer = &string_b[10];
+  // Ponteiros para a chamada o callback
+  ssd_pointer = &ssd; // Ponteiro para o display
+  string_a_pointer = &string_a[11]; // Ponteiro para a string_a
+  string_b_pointer = &string_b[10]; // Ponteiro para a string_b
 
-  ssd1306_rect(&ssd, 0, 0, 128, 64, true, false); // Desenha um retângulo
-  ssd1306_rect(&ssd, 2, 2, 124, 60, true, false); // Desenha um retângulo
-
+  // Desenha a interface inicial do display
+  ssd1306_rect(&ssd, 0, 0, 128, 64, true, false); // Desenha o retângulo de fora
+  ssd1306_rect(&ssd, 2, 2, 124, 60, true, false); // Desenha um retângulo de dentro
   ssd1306_draw_string(&ssd, "caractere", 8, 8); // Desenha uma string
   ssd1306_draw_string(&ssd, "digitado:", 8, 16); // Desenha uma string
-  ssd1306_draw_string(&ssd, c, 80, 16); // Desenha uma string
-  ssd1306_draw_string(&ssd, string_a, 8, 40); // Desenha uma string
-  ssd1306_draw_string(&ssd, string_b, 8, 48); // Desenha uma string
+  ssd1306_draw_string(&ssd, c, 80, 16); // Desenha o caractere digitado
+  ssd1306_draw_string(&ssd, string_a, 8, 40); // Desenha o estado do led verde
+  ssd1306_draw_string(&ssd, string_b, 8, 48); // Desenha o estado do led azul
 
   ssd1306_send_data(&ssd); // Atualiza o display
 
@@ -467,18 +485,18 @@ int main() {
     // Código para a comunicação serial com a BitDogLab pelo terminal do VScode 
     if(stdio_usb_connected) {
 
-      c[0] = getc(stdin);
+      c[0] = getc(stdin); // Recebe o caractere digitado
 
-      handle_numbers(c[0]);
+      handle_numbers(c[0]); // Aciona a matriz
 
-      ssd1306_rect(&ssd, 0, 0, 128, 64, true, false); // Desenha um retângulo
-      ssd1306_rect(&ssd, 2, 2, 124, 60, true, false); // Desenha um retângulo
-
+      // Atualiza a interface toda do display com o caractere recebido
+      ssd1306_rect(&ssd, 0, 0, 128, 64, true, false); // Desenha o retângulo de fora
+      ssd1306_rect(&ssd, 2, 2, 124, 60, true, false); // Desenha o retângulo de dentro
       ssd1306_draw_string(&ssd, "caractere", 8, 8); // Desenha uma string
       ssd1306_draw_string(&ssd, "digitado:", 8, 16); // Desenha uma string
-      ssd1306_draw_string(&ssd, c, 80, 16); // Desenha uma string
-      ssd1306_draw_string(&ssd, string_a, 8, 40); // Desenha uma string
-      ssd1306_draw_string(&ssd, string_b, 8, 48); // Desenha uma string
+      ssd1306_draw_string(&ssd, c, 80, 16); // Desenha o caractere digitado
+      ssd1306_draw_string(&ssd, string_a, 8, 40); // Desenha o estado do led verde
+      ssd1306_draw_string(&ssd, string_b, 8, 48); // Desenha o estado do led azul
 
       ssd1306_send_data(&ssd); // Atualiza o display
     }
@@ -493,18 +511,18 @@ int main() {
     // Código para a simulação no Wokwi
     if(uart_is_readable(UART_ID)) {
 
-      c[0] = uart_getc(UART_ID);
+      c[0] = uart_getc(UART_ID); // Recebe o caractere digitado
 
-      handle_numbers(c[0]);
+      handle_numbers(c[0]); // Aciona a matriz
 
-      ssd1306_rect(&ssd, 0, 0, 128, 64, true, false); // Desenha um retângulo
-      ssd1306_rect(&ssd, 2, 2, 124, 60, true, false); // Desenha um retângulo
-
+      // Atualiza a interface do display com o caractere recebido
+      ssd1306_rect(&ssd, 0, 0, 128, 64, true, false); // Desenha o retângulo de fora
+      ssd1306_rect(&ssd, 2, 2, 124, 60, true, false); // Desenha o retângulo de dentro
       ssd1306_draw_string(&ssd, "caractere", 8, 8); // Desenha uma string
       ssd1306_draw_string(&ssd, "digitado:", 8, 16); // Desenha uma string
-      ssd1306_draw_string(&ssd, c, 80, 16); // Desenha uma string
-      ssd1306_draw_string(&ssd, string_a, 8, 40); // Desenha uma string
-      ssd1306_draw_string(&ssd, string_b, 8, 48); // Desenha uma string
+      ssd1306_draw_string(&ssd, c, 80, 16); // Desenha o caractere digitado
+      ssd1306_draw_string(&ssd, string_a, 8, 40); // Desenha o estado do led verde
+      ssd1306_draw_string(&ssd, string_b, 8, 48); // Desenha o estado do led azul
 
       ssd1306_send_data(&ssd); // Atualiza o display
     }
