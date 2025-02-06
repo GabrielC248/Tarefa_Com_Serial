@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
+#include "pico/bootrom.h"
 #include "hardware/uart.h"
 #include "hardware/i2c.h"
 #include "hardware/pio.h"
@@ -13,7 +14,8 @@
 
 // ---------------- Variáveis - Início ----------------
 
-
+static volatile uint32_t last_time = 0; // Variável para armazenar o tempo do último callback.
+static ssd1306_t *ssd_pointer;
 
 // ---------------- Variáveis - Fim ----------------
 
@@ -28,8 +30,8 @@
 #define I2C_SCL 15
 #define endereco 0x3C
 
-#define green_button 5 // Define o pino do botão verde.
-#define red_button 6   // Define o pino do botão vermelho.
+#define button_A 5 // Define o pino do botão verde.
+#define button_B 6   // Define o pino do botão vermelho.
 
 #define red_rgb 13     // Define o pino vermelho do LED.
 #define green_rgb 11   // Define o pino verde do LED.
@@ -350,12 +352,12 @@ void start_display(ssd1306_t *ssd) {
 
 // Inicializa os botões configurando os pinos apropriados.
 void init_buttons() {
-  gpio_init(red_button);
-  gpio_init(green_button);
-  gpio_set_dir(red_button, GPIO_IN);
-  gpio_set_dir(green_button, GPIO_IN);
-  gpio_pull_up(red_button);
-  gpio_pull_up(green_button);
+  gpio_init(button_B);
+  gpio_init(button_A);
+  gpio_set_dir(button_B, GPIO_IN);
+  gpio_set_dir(button_A, GPIO_IN);
+  gpio_pull_up(button_B);
+  gpio_pull_up(button_A);
 }
 
 // Inicializa o LED RGB configurando os pinos apropriados.
@@ -373,7 +375,30 @@ void init_RGB() {
 
 // ---------------- Inicializações  - Fim ----------------
 
+// Callback da interrupção dos botões.
+void gpio_irq_callback(uint gpio, uint32_t events) {
+  // Obtém o tempo atual em microssegundos.
+  uint32_t current_time = to_ms_since_boot(get_absolute_time());
+
+  // Verifica se passou tempo suficiente desde o último evento.
+  if (current_time - last_time > 200) { // 200 ms de debouncing.
+    last_time = current_time; // Atualiza o tempo do último evento.
+    if( (gpio == button_A)) {
+      printf("teste A\n");
+      gpio_put(green_rgb, !gpio_get(green_rgb));
+    }else
+    if( (gpio == button_B)) {
+      printf("teste B\n");
+      gpio_put(blue_rgb, !gpio_get(blue_rgb));
+    }
+    ssd1306_send_data(ssd_pointer); // Atualiza o display
+  }
+}
+
 int main() {
+  char c[] = "?\0";
+  char string_a[] = "green led:off\0";
+  char string_b[] = "blue led:off\0";
   ssd1306_t ssd; // Inicializa a estrutura do display
 
   stdio_init_all();
@@ -383,6 +408,7 @@ int main() {
   gpio_set_function(1, GPIO_FUNC_UART);
 
   start_display(&ssd);
+  ssd_pointer = &ssd;
 
   // Inicializa matriz de LEDs NeoPixel.
   npInit(LED_PIN);
@@ -395,7 +421,44 @@ int main() {
   // Inicializa o LED RGB.
   init_RGB();
 
+  gpio_set_irq_enabled_with_callback(button_B, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_callback);
+  gpio_set_irq_enabled_with_callback(button_A, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_callback);
+
   while(true) {
     sleep_ms(20);
+    if(stdio_usb_connected) {
+
+      handle_numbers(c[0]);
+
+      ssd1306_rect(&ssd, 0, 0, 128, 64, true, false); // Desenha um retângulo
+      ssd1306_rect(&ssd, 2, 2, 124, 60, true, false); // Desenha um retângulo
+
+      //ssd1306_draw_string(&ssd, "testeeeeeeeeee", 8, 8); // Desenha uma string max 14
+
+      ssd1306_draw_string(&ssd, "caractere", 8, 8); // Desenha uma string
+      ssd1306_draw_string(&ssd, "digitado:", 8, 16); // Desenha uma string
+      ssd1306_draw_string(&ssd, c, 80, 16); // Desenha uma string
+
+      if(gpio_get(green_rgb)) {
+        string_a[11] = 'n';
+        string_a[12] = ' ';
+      }else {
+        string_a[11] = 'f';
+        string_a[12] = 'f';       
+      }
+      if(gpio_get(blue_rgb)) {
+        string_b[10] = 'n';
+        string_b[11] = ' ';
+      }else {
+        string_b[10] = 'f';
+        string_b[11] = 'f';       
+      }
+
+      ssd1306_draw_string(&ssd, string_a, 8, 40); // Desenha uma string
+      ssd1306_draw_string(&ssd, string_b, 8, 48); // Desenha uma string
+
+      ssd1306_send_data(&ssd); // Atualiza o display
+      c[0] = getc(stdin);
+    }
   }
 }
