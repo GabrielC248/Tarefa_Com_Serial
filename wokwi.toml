@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = 'build\Tarefa_Com_Serial.hex'
+elf = 'build\Tarefa_Com_Serial.uf2'
