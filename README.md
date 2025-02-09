@@ -1,6 +1,6 @@
 # Tarefa do EmbarcaTech para introduzir comunicações seriais com o uso da BitDogLab
   - **Desenvolvedor:** <ins>Gabriel Cavalcanti Coelho</ins>;
-  - **Vídeo:** [YouTube](https://youtu.be/cgg5ZuJm_Vc?si=QXdBF2tKewpJKKAv).
+  - **Vídeo:** [YouTube](https://youtu.be/sWxCRKU7WcY?si=4JrRPmrmgu67LR4S).
 
 ### Este projeto implementa o controle de um display OLED SSD1306 e de uma matriz de LEDs WS2812 através do terminal serial do VS Code. Além disso, também inclui interrupções por botões para acionar um LED RGB e debouncing por software.
 
